@@ -33,7 +33,7 @@ tell application "Photos"
     set itemsToDelete to {{}}
     repeat with aUUID in uuids
         try
-            set matched to (every media item whose id is aUUID)
+            set matched to (every media item whose id contains aUUID)
             if (count of matched) > 0 then
                 set itemsToDelete to itemsToDelete & matched
             end if

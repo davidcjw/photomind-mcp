@@ -396,16 +396,17 @@ def delete_photos(
     except Exception as exc:
         return {"error": str(exc), "deleted": 0}
 
-    # Remove deleted photos from the local index
-    deleted_ids = [p["id"] for p in photos]
-    with db.conn:
-        db.conn.executemany(
-            "DELETE FROM photos WHERE id = ?", [(i,) for i in deleted_ids]
-        )
-        db.conn.executemany(
-            "DELETE FROM photo_embeddings WHERE photo_id = ?",
-            [(i,) for i in deleted_ids],
-        )
+    # Only clean up the local index for photos actually deleted in Photos.app
+    if result["deleted"] > 0:
+        deleted_ids = [p["id"] for p in photos]
+        with db.conn:
+            db.conn.executemany(
+                "DELETE FROM photos WHERE id = ?", [(i,) for i in deleted_ids]
+            )
+            db.conn.executemany(
+                "DELETE FROM photo_embeddings WHERE photo_id = ?",
+                [(i,) for i in deleted_ids],
+            )
 
     return {
         "dry_run": False,
