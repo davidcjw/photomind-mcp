@@ -333,6 +333,91 @@ def organise_photos(
     }
 
 
+@mcp.tool()
+def delete_photos(
+    photo_ids: list[str],
+    ctx: Context,
+    dry_run: bool = True,
+) -> dict[str, Any]:
+    """Move photos to Recently Deleted in Photos.app.
+
+    Photos are NOT permanently deleted — they are recoverable from the
+    Recently Deleted album for 30 days.
+
+    ALWAYS run with dry_run=True first (the default) and show the user the
+    list of photos that will be deleted. Only call with dry_run=False after
+    the user has explicitly confirmed they want to proceed.
+
+    Args:
+        photo_ids: List of photo UUIDs to delete (from search results).
+        dry_run:   True (default) = preview only, nothing is deleted.
+                   False = actually move to Recently Deleted.
+                   NEVER pass False without user confirmation.
+    """
+    if not photo_ids:
+        return {"error": "No photo IDs provided.", "count": 0}
+
+    db = _db(ctx)
+    photos = []
+    not_found = []
+    for pid in photo_ids:
+        photo = db.get_photo(pid)
+        if photo:
+            photos.append(photo)
+        else:
+            not_found.append(pid)
+
+    preview_list = [
+        {
+            "id": p["id"],
+            "filename": p["filename"],
+            "date_taken": (p.get("date_taken") or "")[:10],
+        }
+        for p in photos
+    ]
+
+    if dry_run:
+        return {
+            "dry_run": True,
+            "photos_to_delete": preview_list,
+            "count": len(photos),
+            "not_found": not_found,
+            "message": (
+                f"DRY RUN — {len(photos)} photo(s) would be moved to Recently Deleted "
+                f"(recoverable for 30 days). "
+                f"Call again with dry_run=False to proceed."
+            ),
+        }
+
+    # --- Live delete ---
+    from photomind.photos_manager import delete_from_photos
+    try:
+        result = delete_from_photos([p["id"] for p in photos])
+    except Exception as exc:
+        return {"error": str(exc), "deleted": 0}
+
+    # Remove deleted photos from the local index
+    deleted_ids = [p["id"] for p in photos]
+    with db.conn:
+        db.conn.executemany(
+            "DELETE FROM photos WHERE id = ?", [(i,) for i in deleted_ids]
+        )
+        db.conn.executemany(
+            "DELETE FROM photo_embeddings WHERE photo_id = ?",
+            [(i,) for i in deleted_ids],
+        )
+
+    return {
+        "dry_run": False,
+        "deleted": result["deleted"],
+        "not_found": not_found,
+        "message": (
+            f"{result['deleted']} photo(s) moved to Recently Deleted in Photos.app. "
+            f"Recoverable for 30 days via Photos → Recently Deleted."
+        ),
+    }
+
+
 def main() -> None:
     mcp.run()
 
