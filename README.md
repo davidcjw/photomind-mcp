@@ -69,8 +69,10 @@ Replace `/path/to/photomind-mcp` with the absolute path to this repo, then resta
 | `flag_poor_quality(blur_threshold)` | Score every photo's sharpness; return and optionally persist the blurriest. |
 | `organise_photos(group_by)` | Suggest a folder hierarchy (by year/month or year) — read-only, no files moved. |
 | `get_delete_candidates(duplicate_threshold, blur_threshold)` | Identify duplicates and blurry photos to clean up, with date hints for finding them in Photos.app. |
+| `sync_from_directory(directory)` | Index photos from a plain folder (no Photos.app needed) — JPEG, PNG, HEIC, TIFF, WebP. |
+| `delete_photos(photo_ids, dry_run, permanent)` | Delete filesystem photos (from `sync_from_directory`) — moves to Trash by default. Refuses Photos.app library paths. |
 
-> **Note on deletion:** macOS prevents programmatic deletion from Photos.app via AppleScript or PhotoKit from non-bundled processes. `get_delete_candidates` identifies what to remove; deletion is done manually in Photos.app (select photo → Delete ⌫).
+> **Note on deletion:** `delete_photos` only works for photos indexed via `sync_from_directory`. macOS blocks programmatic deletion from the Photos.app library; use `get_delete_candidates` + manual deletion in Photos.app for those.
 
 ## Architecture
 

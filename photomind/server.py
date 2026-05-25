@@ -1,6 +1,7 @@
 """FastMCP server — photomind MCP tools."""
 import logging
 from contextlib import asynccontextmanager
+from pathlib import Path
 from typing import Any, AsyncGenerator
 
 from fastmcp import Context, FastMCP
@@ -412,6 +413,146 @@ def get_delete_candidates(
             "macOS blocks programmatic deletion from Photos.app. "
             "This tool identifies candidates; deletion is manual."
         ),
+    }
+
+
+@mcp.tool()
+def sync_from_directory(
+    directory: str,
+    ctx: Context,
+) -> dict[str, Any]:
+    """Index photos from a plain filesystem directory (no Photos.app required).
+
+    Walks the directory recursively for JPEG, PNG, HEIC, TIFF, and WebP files,
+    extracts EXIF metadata and GPS coordinates via Pillow, generates CLIP
+    embeddings, and stores everything in the same local database used by
+    sync_library().
+
+    Use this when photos have been transferred directly to macOS rather than
+    imported into Photos.app.
+
+    Args:
+        directory: Absolute or home-relative path to the photos folder,
+                   e.g. '/Users/you/Pictures/transferred' or '~/Pictures/backup'.
+    """
+    from photomind.directory_indexer import DirectoryIndexer
+
+    path = directory.replace("~", str(Path.home()))
+    try:
+        result = DirectoryIndexer(_db(ctx), embedder=_embedder(ctx)).sync(path)
+    except (FileNotFoundError, NotADirectoryError) as exc:
+        return {"success": False, "error": str(exc)}
+    except Exception as exc:
+        return {"success": False, "error": f"Sync failed: {exc}"}
+    return {"success": True, **result}
+
+
+@mcp.tool()
+def delete_photos(
+    photo_ids: list[str],
+    ctx: Context,
+    dry_run: bool = True,
+    permanent: bool = False,
+) -> dict[str, Any]:
+    """Delete photos from the filesystem by their UUIDs.
+
+    Only works for photos indexed via sync_from_directory() (plain files).
+    Refuses to touch files inside a Photos.app library bundle.
+
+    ALWAYS run with dry_run=True first (the default) and show the user the
+    list of photos that will be deleted. Only set dry_run=False after the
+    user has explicitly confirmed they want to proceed.
+
+    Args:
+        photo_ids: Photo UUIDs to delete (from search or get_delete_candidates).
+        dry_run:   True (default) = preview only, nothing is deleted.
+                   False = actually delete. NEVER set without user confirmation.
+        permanent: False (default) = move to macOS Trash (recoverable).
+                   True = permanent delete. NEVER set without explicit user request.
+    """
+    from photomind.directory_indexer import is_photos_library_path
+
+    if not photo_ids:
+        return {"error": "No photo IDs provided.", "count": 0}
+
+    db = _db(ctx)
+    photos: list[dict[str, Any]] = []
+    not_found: list[str] = []
+    refused: list[str] = []
+
+    for pid in photo_ids:
+        photo = db.get_photo(pid)
+        if not photo:
+            not_found.append(pid)
+            continue
+        filepath = photo.get("filepath") or ""
+        if is_photos_library_path(filepath):
+            refused.append(pid)
+            continue
+        photos.append(photo)
+
+    preview_list = [
+        {
+            "id": p["id"],
+            "filename": p["filename"],
+            "filepath": p.get("filepath"),
+            "date_taken": (p.get("date_taken") or "")[:10],
+        }
+        for p in photos
+    ]
+
+    if dry_run:
+        msg = f"DRY RUN — {len(photos)} photo(s) would be "
+        msg += "permanently deleted." if permanent else "moved to Trash (recoverable)."
+        msg += " Call again with dry_run=False to proceed."
+        return {
+            "dry_run": True,
+            "photos_to_delete": preview_list,
+            "count": len(photos),
+            "not_found": not_found,
+            "refused_photos_library": refused,
+            "message": msg,
+        }
+
+    # --- Live delete ---
+    import send2trash
+
+    deleted: list[str] = []
+    errors: list[str] = []
+
+    for photo in photos:
+        filepath = photo.get("filepath")
+        if not filepath or not Path(filepath).exists():
+            errors.append(f"{photo['filename']}: file not found on disk")
+            continue
+        try:
+            if permanent:
+                Path(filepath).unlink()
+            else:
+                send2trash.send2trash(filepath)
+            deleted.append(photo["id"])
+        except Exception as exc:
+            errors.append(f"{photo['filename']}: {exc}")
+
+    # Remove successfully deleted photos from the local index
+    if deleted:
+        with db.conn:
+            db.conn.executemany(
+                "DELETE FROM photos WHERE id = ?", [(i,) for i in deleted]
+            )
+            db.conn.executemany(
+                "DELETE FROM photo_embeddings WHERE photo_id = ?",
+                [(i,) for i in deleted],
+            )
+
+    action = "permanently deleted" if permanent else "moved to Trash"
+    return {
+        "dry_run": False,
+        "deleted": len(deleted),
+        "errors": errors,
+        "not_found": not_found,
+        "refused_photos_library": refused,
+        "message": f"{len(deleted)} photo(s) {action}.",
     }
 
 
