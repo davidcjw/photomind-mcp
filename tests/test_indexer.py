@@ -10,7 +10,6 @@ import pytest
 
 from photomind.database import DatabaseManager, _haversine
 from photomind.indexer import PhotoIndexer, _safe_list
-from photomind.photos_manager import delete_from_photos
 
 
 # ---------------------------------------------------------------------------
@@ -343,40 +342,6 @@ class TestQuality:
 # ---------------------------------------------------------------------------
 # compute_sharpness
 # ---------------------------------------------------------------------------
-
-class TestDeleteFromPhotos:
-    def test_empty_list_returns_zero(self):
-        result = delete_from_photos([])
-        assert result == {"deleted": 0, "errors": []}
-
-    def test_calls_osascript(self):
-        with patch("subprocess.run") as mock_run:
-            mock_run.return_value = MagicMock(
-                returncode=0, stdout="2\n", stderr=""
-            )
-            result = delete_from_photos(["uuid-1", "uuid-2"])
-        assert result["deleted"] == 2
-        cmd = mock_run.call_args[0][0]
-        assert cmd == ["osascript"]
-        script = mock_run.call_args[1]["input"]
-        assert "uuid-1" in script
-        assert "uuid-2" in script
-
-    def test_applescript_error_raises(self):
-        with patch("subprocess.run") as mock_run:
-            mock_run.return_value = MagicMock(
-                returncode=1, stdout="", stderr="Photos not running"
-            )
-            with pytest.raises(RuntimeError, match="Photos not running"):
-                delete_from_photos(["uuid-1"])
-
-    def test_non_numeric_stdout_returns_zero(self):
-        with patch("subprocess.run") as mock_run:
-            mock_run.return_value = MagicMock(
-                returncode=0, stdout="unexpected\n", stderr=""
-            )
-            result = delete_from_photos(["uuid-1"])
-        assert result["deleted"] == 0
 
 
 class TestComputeSharpness:

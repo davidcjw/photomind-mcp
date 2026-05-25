@@ -68,7 +68,9 @@ Replace `/path/to/photomind-mcp` with the absolute path to this repo, then resta
 | `find_duplicates(threshold)` | Find near-duplicate photo groups via CLIP cosine similarity (union-find clustering). |
 | `flag_poor_quality(blur_threshold)` | Score every photo's sharpness; return and optionally persist the blurriest. |
 | `organise_photos(group_by)` | Suggest a folder hierarchy (by year/month or year) — read-only, no files moved. |
-| `delete_photos(photo_ids, dry_run)` | Move photos to Recently Deleted (recoverable 30 days). Defaults to `dry_run=True` — always previews before acting. |
+| `get_delete_candidates(duplicate_threshold, blur_threshold)` | Identify duplicates and blurry photos to clean up, with date hints for finding them in Photos.app. |
+
+> **Note on deletion:** macOS prevents programmatic deletion from Photos.app via AppleScript or PhotoKit from non-bundled processes. `get_delete_candidates` identifies what to remove; deletion is done manually in Photos.app (select photo → Delete ⌫).
 
 ## Architecture
 

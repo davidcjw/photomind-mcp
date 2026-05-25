@@ -334,89 +334,98 @@ def organise_photos(
 
 
 @mcp.tool()
-def delete_photos(
-    photo_ids: list[str],
+def get_delete_candidates(
     ctx: Context,
-    dry_run: bool = True,
+    duplicate_threshold: float = 0.98,
+    blur_threshold: float = 500.0,
+    limit: int = DEFAULT_SEARCH_LIMIT,
 ) -> dict[str, Any]:
-    """Move photos to Recently Deleted in Photos.app.
+    """Identify photos that are candidates for deletion: duplicates and blurry shots.
 
-    Photos are NOT permanently deleted — they are recoverable from the
-    Recently Deleted album for 30 days.
+    Does NOT delete anything. Returns a prioritised list with the information
+    needed to find and delete candidates manually in Photos.app.
 
-    ALWAYS run with dry_run=True first (the default) and show the user the
-    list of photos that will be deleted. Only call with dry_run=False after
-    the user has explicitly confirmed they want to proceed.
+    macOS prevents programmatic deletion from Photos.app (the Photos AppleScript
+    delete verb is blocked for non-bundled processes). Use this tool to identify
+    what to remove, then act in Photos.app:
+      1. Navigate to the date shown for each candidate
+      2. Select the photo → press Delete (⌫)  or  Image → Delete Photo
 
     Args:
-        photo_ids: List of photo UUIDs to delete (from search results).
-        dry_run:   True (default) = preview only, nothing is deleted.
-                   False = actually move to Recently Deleted.
-                   NEVER pass False without user confirmation.
+        duplicate_threshold: Cosine similarity cutoff for duplicates (default 0.98).
+        blur_threshold:      Sharpness score cutoff — photos below this are flagged
+                             (default 500; scores typically range 200–5000+).
+        limit:               Max candidates to return (default 50).
     """
-    if not photo_ids:
-        return {"error": "No photo IDs provided.", "count": 0}
-
     db = _db(ctx)
-    photos = []
-    not_found = []
-    for pid in photo_ids:
-        photo = db.get_photo(pid)
-        if photo:
-            photos.append(photo)
-        else:
-            not_found.append(pid)
+    candidates: list[dict[str, Any]] = []
+    seen_ids: set[str] = set()
 
-    preview_list = [
-        {
-            "id": p["id"],
-            "filename": p["filename"],
-            "date_taken": (p.get("date_taken") or "")[:10],
-        }
-        for p in photos
-    ]
+    # Duplicates — keep the sharpest in each group, flag the rest
+    for group_id, group in enumerate(db.find_duplicate_groups(duplicate_threshold), 1):
+        group_sorted = sorted(
+            group, key=lambda p: p.get("quality_score") or 0.0, reverse=True
+        )
+        keeper = group_sorted[0]
+        for photo in group_sorted[1:]:
+            if photo["id"] in seen_ids:
+                continue
+            seen_ids.add(photo["id"])
+            candidates.append({
+                "reason": "duplicate",
+                "group_id": group_id,
+                "id": photo["id"],
+                "filename": photo["filename"],
+                "date_taken": (photo.get("date_taken") or "")[:10],
+                "quality_score": round(photo.get("quality_score") or 0.0, 1),
+                "similarity_score": photo.get("similarity_score", 0.0),
+                "keep_instead": keeper["filename"],
+                "find_in_photos": _photos_date_hint(photo),
+            })
 
-    if dry_run:
-        return {
-            "dry_run": True,
-            "photos_to_delete": preview_list,
-            "count": len(photos),
-            "not_found": not_found,
-            "message": (
-                f"DRY RUN — {len(photos)} photo(s) would be moved to Recently Deleted "
-                f"(recoverable for 30 days). "
-                f"Call again with dry_run=False to proceed."
-            ),
-        }
+    # Poor quality — below blur_threshold
+    for photo in db.photos_with_paths():
+        score = photo.get("quality_score")
+        if score is None or float(score) >= blur_threshold or photo["id"] in seen_ids:
+            continue
+        seen_ids.add(photo["id"])
+        candidates.append({
+            "reason": "poor_quality",
+            "id": photo["id"],
+            "filename": photo["filename"],
+            "date_taken": (photo.get("date_taken") or "")[:10],
+            "quality_score": round(float(score), 1),
+            "find_in_photos": _photos_date_hint(photo),
+        })
 
-    # --- Live delete ---
-    from photomind.photos_manager import delete_from_photos
-    try:
-        result = delete_from_photos([p["id"] for p in photos])
-    except Exception as exc:
-        return {"error": str(exc), "deleted": 0}
-
-    # Only clean up the local index for photos actually deleted in Photos.app
-    if result["deleted"] > 0:
-        deleted_ids = [p["id"] for p in photos]
-        with db.conn:
-            db.conn.executemany(
-                "DELETE FROM photos WHERE id = ?", [(i,) for i in deleted_ids]
-            )
-            db.conn.executemany(
-                "DELETE FROM photo_embeddings WHERE photo_id = ?",
-                [(i,) for i in deleted_ids],
-            )
+    # Duplicates first, then blurriest-first within each group
+    candidates.sort(key=lambda c: (c["reason"] != "duplicate", c.get("quality_score", 0)))
 
     return {
-        "dry_run": False,
-        "deleted": result["deleted"],
-        "not_found": not_found,
-        "message": (
-            f"{result['deleted']} photo(s) moved to Recently Deleted in Photos.app. "
-            f"Recoverable for 30 days via Photos → Recently Deleted."
+        "candidates": candidates[:limit],
+        "total_candidates": len(candidates),
+        "how_to_delete": (
+            "Photos.app → navigate to the date → select photo → "
+            "Delete (⌫)  or  Image → Delete Photo"
+        ),
+        "note": (
+            "macOS blocks programmatic deletion from Photos.app. "
+            "This tool identifies candidates; deletion is manual."
         ),
     }
+
+
+def _photos_date_hint(photo: dict[str, Any]) -> str:
+    """Return a human-readable hint for locating a photo in Photos.app."""
+    date_str = photo.get("date_taken") or ""
+    if len(date_str) >= 10:
+        try:
+            from datetime import datetime
+            dt = datetime.fromisoformat(date_str)
+            return f"Navigate to {dt.strftime('%-d %b %Y')} in Photos.app"
+        except Exception:
+            pass
+    return "Search Photos.app by filename or date"
 
 
 def main() -> None:
