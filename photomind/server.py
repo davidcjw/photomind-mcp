@@ -462,8 +462,9 @@ def sync_from_device(
     (accept the 'Trust This Computer?' prompt on the device screen).
 
     Does NOT delete photos from the device — deletion is left to the user.
-    Copied photos are indexed into the local database. Use delete_photos()
-    to remove local copies afterwards if desired.
+    Copied photos are indexed into the local database. Re-runs are safe —
+    files already present at the destination are skipped, not overwritten.
+    Use delete_photos() to remove local copies afterwards if desired.
 
     Args:
         destination: Local folder to copy photos into (created if needed).
@@ -474,9 +475,8 @@ def sync_from_device(
     """
     from photomind.device_indexer import DeviceIndexer
 
-    dest = destination.replace("~", str(Path.home()))
     try:
-        result = DeviceIndexer(_db(ctx), embedder=_embedder(ctx)).sync(dest, device_id)
+        result = DeviceIndexer(_db(ctx), embedder=_embedder(ctx)).sync(destination, device_id)
     except RuntimeError as exc:
         return {"success": False, "error": str(exc)}
     except Exception as exc:

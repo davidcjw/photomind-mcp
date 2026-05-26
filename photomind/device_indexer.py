@@ -27,6 +27,9 @@ def _list_devices() -> list[str]:
     result = subprocess.run(
         ["idevice_id", "-l"], capture_output=True, text=True
     )
+    if result.returncode != 0:
+        logger.warning("idevice_id failed: %s", result.stderr.strip())
+        return []
     return [line.strip() for line in result.stdout.splitlines() if line.strip()]
 
 
@@ -36,6 +39,9 @@ def _get_device_name(udid: str) -> str:
         ["ideviceinfo", "-u", udid, "-k", "DeviceName"],
         capture_output=True, text=True,
     )
+    if result.returncode != 0:
+        logger.warning("ideviceinfo failed for %s: %s", udid, result.stderr.strip())
+        return "Unknown Device"
     return result.stdout.strip() or "Unknown Device"
 
 
@@ -90,7 +96,9 @@ class DeviceIndexer:
                 Path(mountpoint) / "DCIM", dest
             )
         finally:
-            subprocess.run(["umount", mountpoint], capture_output=True)
+            umount = subprocess.run(["umount", mountpoint], capture_output=True)
+            if umount.returncode != 0:
+                logger.warning("umount failed for %s: %s", mountpoint, umount.stderr)
             try:
                 Path(mountpoint).rmdir()
             except OSError:
