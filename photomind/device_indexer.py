@@ -4,7 +4,11 @@ from __future__ import annotations
 import logging
 import shutil
 import subprocess
+import tempfile
+from pathlib import Path
 from typing import Any
+
+from photomind.directory_indexer import DirectoryIndexer
 
 logger = logging.getLogger(__name__)
 
@@ -33,11 +37,6 @@ def _get_device_name(udid: str) -> str:
         capture_output=True, text=True,
     )
     return result.stdout.strip() or "Unknown Device"
-
-
-import shutil as _shutil
-import tempfile
-from pathlib import Path
 
 
 class DeviceIndexer:
@@ -79,14 +78,14 @@ class DeviceIndexer:
         dest.mkdir(parents=True, exist_ok=True)
 
         mountpoint = tempfile.mkdtemp(prefix="photomind-device-")
-        mount_result = subprocess.run(
-            ["ifuse", "-u", udid, mountpoint],
-            capture_output=True, text=True,
-        )
-        if mount_result.returncode != 0:
-            raise RuntimeError(f"ifuse mount failed: {mount_result.stderr.strip()}")
-
         try:
+            mount_result = subprocess.run(
+                ["ifuse", "-u", udid, mountpoint],
+                capture_output=True, text=True,
+            )
+            if mount_result.returncode != 0:
+                raise RuntimeError(f"ifuse mount failed: {mount_result.stderr.strip()}")
+
             copied, skipped, copy_errors = self._copy_dcim(
                 Path(mountpoint) / "DCIM", dest
             )
@@ -97,7 +96,6 @@ class DeviceIndexer:
             except OSError:
                 pass
 
-        from photomind.directory_indexer import DirectoryIndexer
         index_result = DirectoryIndexer(self._db, embedder=self._embedder).sync(str(dest))
 
         return {
@@ -132,7 +130,7 @@ class DeviceIndexer:
                 continue
 
             try:
-                _shutil.copy2(str(src_file), str(dest_file))
+                shutil.copy2(str(src_file), str(dest_file))
                 copied += 1
             except Exception as exc:
                 logger.warning("Failed to copy %s: %s", src_file.name, exc)
