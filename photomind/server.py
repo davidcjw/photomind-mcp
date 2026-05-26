@@ -448,6 +448,43 @@ def sync_from_directory(
 
 
 @mcp.tool()
+def sync_from_device(
+    destination: str,
+    ctx: Context,
+    device_id: str | None = None,
+) -> dict[str, Any]:
+    """Copy photos from a USB-connected iPhone to a local folder, then index them.
+
+    Requires libimobiledevice and ifuse to be installed:
+        brew install libimobiledevice ifuse
+
+    The iPhone must be unlocked and must have trusted this computer
+    (accept the 'Trust This Computer?' prompt on the device screen).
+
+    Does NOT delete photos from the device — deletion is left to the user.
+    Copied photos are indexed into the local database. Use delete_photos()
+    to remove local copies afterwards if desired.
+
+    Args:
+        destination: Local folder to copy photos into (created if needed).
+                     DCIM subfolder structure is preserved inside the folder,
+                     e.g. destination/100APPLE/IMG_0001.HEIC.
+        device_id:   Specific device UDID (optional). Uses the first connected
+                     device if omitted. Run `idevice_id -l` in Terminal to list UDIDs.
+    """
+    from photomind.device_indexer import DeviceIndexer
+
+    dest = destination.replace("~", str(Path.home()))
+    try:
+        result = DeviceIndexer(_db(ctx), embedder=_embedder(ctx)).sync(dest, device_id)
+    except RuntimeError as exc:
+        return {"success": False, "error": str(exc)}
+    except Exception as exc:
+        return {"success": False, "error": f"Sync failed: {exc}"}
+    return {"success": True, **result}
+
+
+@mcp.tool()
 def delete_photos(
     photo_ids: list[str],
     ctx: Context,
