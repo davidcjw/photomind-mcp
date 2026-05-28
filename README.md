@@ -2,6 +2,8 @@
 
 A local-first MCP server that gives AI agents intelligent access to your macOS Photos library — semantic search via CLIP, plus metadata search by date, location, camera, and people. Fully on-device, no cloud dependency.
 
+[![AgentReady Score](https://agentready-gules.vercel.app/api/badge/davidcjw/photomind-mcp)](https://agentready-gules.vercel.app/results/davidcjw/photomind-mcp)
+
 ## Prerequisites
 
 - macOS with Photos.app (at least one photo library opened)
