@@ -1,8 +1,24 @@
 # photomind-mcp
 
+![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)
+![Python](https://img.shields.io/badge/python-3.11%2B-blue)
+[![AgentReady Score](https://agentready-gules.vercel.app/api/badge/davidcjw/photomind-mcp)](https://agentready-gules.vercel.app/results/davidcjw/photomind-mcp)
+
 A local-first MCP server that gives AI agents intelligent access to your macOS Photos library — semantic search via CLIP, plus metadata search by date, location, camera, and people. Fully on-device, no cloud dependency.
 
-[![AgentReady Score](https://agentready-gules.vercel.app/api/badge/davidcjw/photomind-mcp)](https://agentready-gules.vercel.app/results/davidcjw/photomind-mcp)
+## Table of Contents
+
+- [Prerequisites](#prerequisites)
+- [Demo](#demo)
+- [Quick Start](#quick-start)
+- [Claude Desktop Integration](#claude-desktop-integration)
+- [Tools](#tools)
+- [Architecture](#architecture)
+- [Tech Stack](#tech-stack)
+- [Running Tests](#running-tests)
+- [Contributing](#contributing)
+- [Code of Conduct](#code-of-conduct)
+- [License](#license)
 
 ## Prerequisites
 
@@ -125,3 +141,22 @@ Then replace the placeholder in the Demo section above with:
 ```markdown
 ![photomind-mcp demo](docs/demo.gif)
 ```
+
+## Contributing
+
+Contributions are welcome! Please open an issue first to discuss what you'd like to change.
+
+1. Fork the repo
+2. Create a feature branch (`git checkout -b feature/your-feature`)
+3. Commit your changes (`git commit -m 'feat: describe change'`)
+4. Push and open a pull request
+
+Please make sure tests pass (`uv run pytest tests/ -v`) before submitting a PR.
+
+## Code of Conduct
+
+This project follows the [Contributor Covenant v2.1](https://www.contributor-covenant.org/version/2/1/code_of_conduct/). By participating you agree to uphold a welcoming, harassment-free environment.
+
+## License
+
+Distributed under the MIT License. See [LICENSE](LICENSE) for details.
