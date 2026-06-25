@@ -19,6 +19,7 @@ A local-first MCP server that gives AI agents intelligent access to your macOS P
 - [Contributing](#contributing)
 - [Code of Conduct](#code-of-conduct)
 - [License](#license)
+- [Acknowledgements](#acknowledgements)
 
 ## Prerequisites
 
@@ -160,3 +161,13 @@ This project follows the [Contributor Covenant v2.1](https://www.contributor-cov
 ## License
 
 Distributed under the MIT License. See [LICENSE](LICENSE) for details.
+
+## Acknowledgements
+
+photomind-mcp stands on the shoulders of these excellent open-source projects:
+
+- [FastMCP](https://github.com/jlowin/fastmcp) — the Python framework powering the MCP server
+- [osxphotos](https://github.com/RhetTbull/osxphotos) — programmatic access to the macOS Photos.app library
+- [OpenCLIP](https://github.com/mlfoundations/open_clip) — local CLIP embeddings for semantic search
+- [pillow-heif](https://github.com/bigcat88/pillow_heif) — HEIC decoding for iPhone photos
+- [Model Context Protocol](https://modelcontextprotocol.io) — the open standard this server implements
