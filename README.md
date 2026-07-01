@@ -1,5 +1,6 @@
 # photomind-mcp
 
+[![CI](https://github.com/davidcjw/photomind-mcp/actions/workflows/ci.yml/badge.svg)](https://github.com/davidcjw/photomind-mcp/actions/workflows/ci.yml)
 ![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)
 ![Python](https://img.shields.io/badge/python-3.11%2B-blue)
 [![AgentReady Score](https://agentready-gules.vercel.app/api/badge/davidcjw/photomind-mcp)](https://agentready-gules.vercel.app/results/davidcjw/photomind-mcp)

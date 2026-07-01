@@ -234,6 +234,7 @@ class TestExtract:
 # ---------------------------------------------------------------------------
 
 class TestSync:
+    @pytest.mark.macos  # patches osxphotos.PhotosDB, which requires a real (macOS-only) osxphotos import
     def test_error_counted_but_good_photo_indexed(self, db: DatabaseManager):
         good = _mock_photo("good-uuid")
         indexer = PhotoIndexer(db)

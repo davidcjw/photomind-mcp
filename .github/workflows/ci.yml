@@ -1,0 +1,27 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+
+      - name: Set up Python 3.11
+        run: uv python install 3.11
+
+      - name: Install dependencies
+        run: uv sync --dev
+
+      # osxphotos (macOS-only) and open-clip-torch (heavy CLIP weights) can't run
+      # headless on Linux, so those tests are marked 'macos'/'integration' and
+      # deselected here — CI runs only the mock-based, headless-safe subset.
+      - name: Run tests
+        run: uv run pytest -m "not macos and not integration"
