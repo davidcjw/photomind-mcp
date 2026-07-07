@@ -1,7 +1,7 @@
 """Tests for embeddings pipeline and vector search — no real CLIP model needed."""
 import struct
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 

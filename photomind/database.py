@@ -11,7 +11,6 @@ from typing import Any
 import numpy as np
 
 from photomind.config import DB_PATH
-from photomind.embeddings import EMBEDDING_DIM
 
 logger = logging.getLogger(__name__)
 
