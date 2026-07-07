@@ -1,5 +1,3 @@
-import tempfile
-from pathlib import Path
 from unittest.mock import MagicMock, patch
 import pytest
 from photomind.device_indexer import _check_tool, _list_devices, _get_device_name

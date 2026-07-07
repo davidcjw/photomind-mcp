@@ -9,7 +9,7 @@ import numpy as np
 import pytest
 
 from photomind.database import DatabaseManager, _haversine
-from photomind.indexer import PhotoIndexer, _safe_list
+from photomind.indexer import PhotoIndexer
 
 
 # ---------------------------------------------------------------------------
